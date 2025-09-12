@@ -11,7 +11,7 @@ npm install @astroimg/trywakeup
 ## Usage
 
 ```js
-import Wakeup from "@your-scope/wakeup";
+import Wakeup from "@astroimg/wakeup";
 
 const { startULink } = Wakeup;
 
