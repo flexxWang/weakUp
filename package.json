@@ -1,40 +1,37 @@
 {
   "name": "@astroimg/trywakeup",
   "version": "1.0.0",
-  "description": "Tiny tryWakeup utility (WeChat-aware) - ULink style",
-  "main": "dist/index.cjs.js",        
-  "module": "dist/index.esm.js",      
-  "browser": "dist/index.umd.js",     
-  "exports": {
-    ".": {
-      "require": "./dist/index.cjs.js",
-      "import": "./dist/index.esm.js",
-      "default": "./dist/index.cjs.js"
-    }
-  },
+  "type": "module",
+  "description": "A lightweight JS utility to wakeup app (similar to Umeng trackLinkWakeup).",
+  "main": "dist/trywakeup.cjs.js",
+  "module": "dist/trywakeup.esm.js",
+  "types": "dist/index.d.ts",
   "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+    "dist"
   ],
   "scripts": {
     "build": "rollup -c",
-    "prepare": "npm run build",        
-    "test": "echo \"no tests\"",
-    "lint": "eslint . --ext .js"
+    "prepare": "npm run build",
+    "release": "npm publish --access public"
   },
-  "keywords": ["wakeup","deeplink","ulink","weixin","wechat"],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourname/try-wakeup.git"
+    "url": "https://github.com/flexxWang/weakUp.git"
   },
+  "keywords": [
+    "wakeup",
+    "deeplink",
+    "app",
+    "umeng",
+    "javascript"
+  ],
   "author": "3117136859@qq.com",
   "license": "MIT",
-  "peerDependencies": {},
   "devDependencies": {
-    "rollup": "^3.0.0",
-    "@rollup/plugin-node-resolve": "^15.0.0",
-    "@rollup/plugin-commonjs": "^25.0.0",
-    "rollup-plugin-terser": "^7.0.0"
+    "rollup": "^3.29.5",
+    "@rollup/plugin-node-resolve": "^15.0.2",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-terser": "^0.4.4"
   }
 }
+
