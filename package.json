@@ -1,5 +1,5 @@
 {
-  "name": "@astroimg/trywakeup",
+  "name": "trywakeup",
   "version": "1.0.0",
   "type": "module",
   "description": "A lightweight JS utility to wakeup app (similar to Umeng trackLinkWakeup).",
