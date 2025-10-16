@@ -1,5 +1,5 @@
 {
-  "name": "trywakeup",
+  "name": "@astroimg/trywakeup",
   "version": "1.0.0",
   "type": "module",
   "description": "A lightweight JS utility to wakeup app (similar to Umeng trackLinkWakeup).",
@@ -32,6 +32,10 @@
     "@rollup/plugin-node-resolve": "^15.0.2",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-terser": "^0.4.4"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   }
 }
 

@@ -5,13 +5,13 @@ A lightweight JS utility to wakeup app (similar to Umeng `trackLinkWakeup`).
 ## Installation
 
 ```bash
-npm install trywakeup
+npm install @astroimg/trywakeup
 ```
 
 ## Usage
 
 ```js
-import Wakeup from "wakeup";
+import Wakeup from "@astroimg/trywakeup";
 
 const { startULink } = Wakeup;
 
