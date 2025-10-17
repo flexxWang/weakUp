@@ -1,6 +1,6 @@
 {
   "name": "@astroimg/trywakeup",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "A lightweight JS utility to wakeup app (similar to Umeng trackLinkWakeup).",
   "main": "dist/index.cjs.js",
