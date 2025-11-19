@@ -111,15 +111,25 @@ export class ULink {
       }
     }
     if (typeof selector === 'string') {
-      document.addEventListener('click', function (e) {
+      document.addEventListener('click', (e) => {
         let el = e.target.closest(selector)
+        // 用于没有直接点击到目标元素的情况
+        if (!el) {
+          const targetSelector = document.querySelector(`#${selector}`)
+          // 点击targetSelector 调用handler
+          if (targetSelector) {
+            handler(e)
+          }
+          return
+        }
         while (el && el !== document) {
           try {
             handler(e)
             break
           }
-          // eslint-disable-next-line no-unused-vars
-          catch (err) { /* ignore invalid selectors */ }
+
+          catch (err) {
+            /* ignore invalid selectors */ }
           el = el.parentNode
         }
       }, false)
