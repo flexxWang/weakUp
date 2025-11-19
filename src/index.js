@@ -115,6 +115,7 @@ export class ULink {
         let el = e.target.closest(selector)
         // 用于没有直接点击到目标元素的情况
         if (!el) {
+          if (!selector) return;
           if(selector.startsWith('#')) {
             el = null
             selector = null
