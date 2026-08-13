@@ -4,7 +4,52 @@ import {
 import { visibility } from './utils.js'
 
 function openByLocation(url) {
-  window.location.href = url
+  if (!url) return false
+  try {
+    const target = new URL(url, window.location.href).href
+    const current = new URL(window.location.href).href
+    if (target === current) return false
+    window.location.href = target
+    return true
+  }
+  // eslint-disable-next-line no-unused-vars
+  catch (e) {
+    // ignore invalid urls
+    return false
+  }
+}
+function isSameUrl(left, right) {
+  if (!left || !right) return false
+  try {
+    return new URL(left, window.location.href).href === new URL(right, window.location.href).href
+  }
+  // eslint-disable-next-line no-unused-vars
+  catch (e) {
+    return left === right
+  }
+}
+function isHttpUrl(url) {
+  return /^https?:\/\//.test(url || '')
+}
+function isSchemeUrl(url) {
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url || '')
+}
+function isSameHttpPath(left, right) {
+  if (!left || !right) return false
+  try {
+    const l = new URL(left, window.location.href)
+    const r = new URL(right, window.location.href)
+    return /^https?:$/.test(l.protocol) && /^https?:$/.test(r.protocol)
+      && l.origin === r.origin
+      && l.pathname === r.pathname
+  }
+  // eslint-disable-next-line no-unused-vars
+  catch (e) {
+    return false
+  }
+}
+function resolveSolutionDownload(solution = {}) {
+  return solution.downloadUrl || solution.download_url || solution.download || ''
 }
 function openByIframe(url) {
   const iframe = document.createElement('iframe')
@@ -83,33 +128,118 @@ export function tryWakeup(solution = {}, opts = {}) {
 
   return new Promise((resolve) => {
     let opened = false
+    let settled = false
+    let fallbackOpened = false
+    let defaultFallbackOpened = false
+    let timer = null
+    let blurTimer = null
+    const openedLocationUrls = new Set()
     const start = Date.now()
+    const vEvent = visibility.visibilityChange
+
+    function cleanup() {
+      try {
+        clearTimeout(timer)
+        clearTimeout(blurTimer)
+      }
+      // eslint-disable-next-line no-unused-vars
+      catch (e) {
+        // ignore
+      }
+      if (vEvent) {
+        try {
+          document.removeEventListener(vEvent, onVis)
+        }
+        // eslint-disable-next-line no-unused-vars
+        catch (e) {
+          // ignore
+        }
+      }
+      try {
+        window.removeEventListener('blur', onBlur)
+      }
+      // eslint-disable-next-line no-unused-vars
+      catch (e) {
+        // ignore
+      }
+    }
+
+    function settle(result) {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(result)
+    }
 
     function onSuccessDetected() {
       opened = true
-      cleanup()
-      resolve({ success: true, reason: 'visibility' })
+      settle({ success: true, reason: 'visibility' })
     }
-    const vEvent = visibility.visibilityChange
-    if (vEvent) document.addEventListener(vEvent, function onVis() {
+
+    function onVis() {
       if (document.hidden) {
         onSuccessDetected()
       }
-    }, { once: true })
+    }
 
-    window.addEventListener('blur', function onBlur() {
-      setTimeout(() => {
+    function onBlur() {
+      blurTimer = setTimeout(() => {
         if (!opened && (document.hidden || Date.now() - start > 200)) {
           opened = true
-          cleanup()
-          resolve({ success: true, reason: 'blur' })
+          settle({ success: true, reason: 'blur' })
         }
       }, 50)
-    }, { once: true })
+    }
 
-    let timer = setTimeout(() => {
-      if (!opened) {
-        cleanup()
+    function openLocationOnce(url) {
+      if (!url) return false
+      let target = url
+      try {
+        target = new URL(url, window.location.href).href
+      }
+      // eslint-disable-next-line no-unused-vars
+      catch (e) {
+        // keep original url
+      }
+      if (openedLocationUrls.has(target)) return false
+      openedLocationUrls.add(target)
+      return openByLocation(target)
+    }
+
+    function showOpenInBrowserTip() {
+      if (typeof useOpenInBrowerTips === 'function') {
+        try {
+          useOpenInBrowerTips()
+        }
+        // eslint-disable-next-line no-unused-vars
+        catch (e) {
+          showBrowserOpenTip()
+        }
+      }
+      else {
+        showBrowserOpenTip()
+      }
+    }
+
+    function openDefaultFallback(download, wakeUrl) {
+      if (defaultFallbackOpened) return
+      defaultFallbackOpened = true
+      if (isWeChat() || isQQ()) {
+        showOpenInBrowserTip()
+      }
+      else if (download && !isSameUrl(download, wakeUrl) && !isSameHttpPath(download, wakeUrl)) {
+        openLocationOnce(download)
+      }
+    }
+
+    function openFallback(action) {
+      if (fallbackOpened) return
+      fallbackOpened = true
+      action()
+    }
+
+    function runFallback(download, wakeUrl) {
+      openFallback(() => {
         if (beforeOpenDownload) try {
           beforeOpenDownload()
         }
@@ -121,39 +251,16 @@ export function tryWakeup(solution = {}, opts = {}) {
         if (proxyOpenDownload) {
           try {
             proxyOpenDownload(() => {
-              if (isWeChat() || isQQ()) {
-                showBrowserOpenTip()
-              }
-              else if (solution.downloadUrl) {
-                openByLocation(solution.downloadUrl)
-              }
+              openDefaultFallback(download, wakeUrl)
             }, { solution, opts })
           }
           // eslint-disable-next-line no-unused-vars
           catch (e) {
-            if (!isWeChat() && !isQQ() && solution.downloadUrl) {
-              openByLocation(solution.downloadUrl)
-            }
+            openDefaultFallback(download, wakeUrl)
           }
         }
         else {
-          if (isWeChat() || isQQ()) {
-            if (typeof useOpenInBrowerTips === 'function') {
-              try {
-                useOpenInBrowerTips()
-              }
-              // eslint-disable-next-line no-unused-vars
-              catch (e) {
-                showBrowserOpenTip()
-              }
-            }
-            else {
-              showBrowserOpenTip()
-            }
-          }
-          else if (solution.downloadUrl) {
-            openByLocation(solution.downloadUrl)
-          }
+          openDefaultFallback(download, wakeUrl)
         }
 
         if (afterOpenDownload)
@@ -164,108 +271,69 @@ export function tryWakeup(solution = {}, opts = {}) {
           catch (e) {
           // ignore
           }
-        resolve({ success: false, reason: 'timeout' })
+      })
+    }
+
+    try {
+      if (vEvent) document.addEventListener(vEvent, onVis, { once: true })
+      window.addEventListener('blur', onBlur, { once: true })
+    }
+    catch (error) {
+      settle({ success: false, reason: 'error', error })
+      return
+    }
+
+    timer = setTimeout(() => {
+      if (!opened) {
+        const wakeUrl = solution.wakeupUrl || solution.wakeup_url || solution.wakeup || solution.scheme || ''
+        const download = resolveSolutionDownload(solution)
+        runFallback(download, wakeUrl)
+        settle({ success: false, reason: 'timeout' })
       }
     }, timeout)
-
-    function cleanup() {
-      try {
-        clearTimeout(timer)
-      }
-      // eslint-disable-next-line no-unused-vars
-      catch (e) {
-        // ignore
-      }
-      if (vEvent) {
-        try {
-          document.removeEventListener(vEvent, onSuccessDetected)
-        }
-        // eslint-disable-next-line no-unused-vars
-        catch (e) {
-          // ignore
-        }
-      }
-      try {
-        window.removeEventListener('blur', () => {})
-      }
-      // eslint-disable-next-line no-unused-vars
-      catch (e) {
-        // ignore
-      }
-    }
 
     // ----------- 唤端逻辑 -----------
     try {
       const wakeUrl = solution.wakeupUrl || solution.wakeup_url || solution.wakeup || solution.scheme || ''
-      const download = solution.downloadUrl || solution.download_url || solution.download
+      const download = resolveSolutionDownload(solution)
       const type = solution.type || ''
       console.log('tryWakeup', wakeUrl, download, type)
       // 微信或者QQ不走唤醒，直接提示用户使用浏览器打开
       if (isWeChat() || isQQ()) {
-        if (proxyOpenDownload) {
-          proxyOpenDownload(() => {
-            if (typeof useOpenInBrowerTips === 'function') {
-              try {
-                useOpenInBrowerTips()
-              }
-              // eslint-disable-next-line no-unused-vars
-              catch (e) {
-                showBrowserOpenTip()
-              }
-            }
-            else {
-              showBrowserOpenTip()
-            }
-          }, { solution, opts })
-        }
-        else {
-          if (typeof useOpenInBrowerTips === 'function') {
-            try {
-              useOpenInBrowerTips()
-            }
-            // eslint-disable-next-line no-unused-vars
-            catch (e) {
-              showBrowserOpenTip()
-            }
-          }
-          else {
-            showBrowserOpenTip()
-          }
-        }
+        runFallback(download, wakeUrl)
         return
       }
 
       // iOS universal link
-      if (isIos() && wakeUrl && /^https?:\/\//.test(wakeUrl)) {
-        openByLocation(wakeUrl)
+      if (isIos() && wakeUrl && isHttpUrl(wakeUrl)) {
+        openLocationOnce(wakeUrl)
       }
       // Android Chrome intent
       else if (isAndroid() && isChrome()) {
         const intentUrl = buildIntentURL(solution, download)
-        if (intentUrl) openByLocation(intentUrl)
+        if (intentUrl) openLocationOnce(intentUrl)
         else if (wakeUrl) openByIframe(wakeUrl)
       }
       // Alipay/DingTalk
       else if (isAlipay() && solution.alipayUrl) {
-        openByLocation(solution.alipayUrl)
+        openLocationOnce(solution.alipayUrl)
       }
       else if (isDingTalk() && solution.dingtalkUrl) {
-        openByLocation(solution.dingtalkUrl)
+        openLocationOnce(solution.dingtalkUrl)
       }
       // default scheme
       else if (wakeUrl) {
-        if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(wakeUrl)) {
-          if (/^https?:\/\//.test(wakeUrl)) openByLocation(wakeUrl)
+        if (isSchemeUrl(wakeUrl)) {
+          if (isHttpUrl(wakeUrl)) openLocationOnce(wakeUrl)
           else openByIframe(wakeUrl)
         }
         else {
-          openByLocation(wakeUrl)
+          openLocationOnce(wakeUrl)
         }
       }
     }
-    // eslint-disable-next-line no-unused-vars
-    catch (e) {
-      // ignore runtime open errors
+    catch (error) {
+      settle({ success: false, reason: 'error', error })
     }
   })
 }
